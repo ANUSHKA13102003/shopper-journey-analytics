@@ -1,11 +1,12 @@
 # Engineering and Analytical Decisions
 
-1. **DuckDB out-of-core processing**: REES46 Oct+Nov totals 14.68 GB uncompressed (109.95M rows) and Criteo Uplift is 13.98M rows. Using DuckDB with `memory_limit = '4GB'` and `temp_directory = 'data/interim/duckdb_tmp'` keeps peak RAM low and avoids loading raw CSVs into pandas.
-2. **Criteo Uplift download source**: `scikit-uplift`'s `fetch_criteo` URL returned HTTP 404 and the direct `go.criteo.net` stream stalled; switched to the official Hugging Face mirror (`criteo/criteo-uplift`, `criteo-research-uplift-v2.1.csv.gz`) via `curl`.
-3. **Python version in `render.yaml`**: Pinned `PYTHON_VERSION` to `3.12.8` because `numpy==2.5.5` and `scipy==1.18.1` require Python `>=3.12`.
-4. **Session funnel denominator**: Restricted `sql/01_funnel.sql` to sessions with at least one `view` event (`has_view = 1`), and attributed each session to its entry `category_code` and first positive `price` band so stages are strictly monotonic (`viewed >= carted >= purchased`).
-5. **Existing-user washout in cohorts**: Excluded users first seen in the first 7 days (`2019-10-01` to `2019-10-07`) from cohort retention so returning pre-existing shoppers do not inflate new-user retention.
-6. **Strict full-window eligibility**: Only users whose `first_seen_date <= max_date - N` are included in `D7`, `D14`, `D28`, and `D1..D28` retention denominators.
-7. **Intention-to-Treat (ITT) for Part B**: Evaluated `treatment = 1` vs `treatment = 0` rather than `exposure = 1` vs `0` to preserve randomization, while reporting the `3.60%` treatment exposure rate as a delivery diagnostic.
-8. **Collapsing tied quartiles in Criteo segments**: Several anonymized features (`f1, f4, f5, f7, f9, f10, f11`) are concentrated at a mode where `q25 == q50` or `q25 == q50 == q75`. We collapsed identical cutpoints into non-overlapping bins (`25` total cuts) and applied Benjamini-Hochberg FDR correction across all `25` tests.
-
+1. **DuckDB out-of-core processing**: REES46 Oct+Nov totals 14.68 GB uncompressed (`109,950,743` rows) and Criteo Uplift has `13,979,592` rows. Streaming CSVs directly in DuckDB (`memory_limit = '4GB'`, `temp_directory = 'data/interim/duckdb_tmp'`) keeps peak memory low and exports `<100 KB` of Parquet/JSON files to `outputs/`.
+2. **Criteo Uplift download mirror**: `scikit-uplift`'s `fetch_criteo` S3 bucket returned HTTP 404 and `go.criteo.net` stalled; switched to the official Hugging Face mirror (`criteo/criteo-uplift`, `criteo-research-uplift-v2.1.csv.gz`).
+3. **Python 3.12.8 on Render**: Pinned `PYTHON_VERSION=3.12.8` on Render because `numpy==2.5.5` and `scipy==1.18.1` require Python `>=3.12`.
+4. **Cold-start reduction and keep-alive**:
+   - The Streamlit app loads only pre-aggregated Parquet/JSON files (`<100 KB`) inside a single `@st.cache_data(ttl=3600)` call and imports zero heavy training/CLI packages at runtime.
+   - Configured Render's health check to Streamlit's lightweight `/_stcore/health` endpoint (`render.yaml` and Render service `srv-dc3hopijnfac73apequ0`).
+   - Added a scheduled GitHub Actions workflow (`.github/workflows/keepalive.yml`) that pings `https://shopper-journey-analytics.onrender.com/_stcore/health` every 5 minutes (`*/5 * * * *`) to reduce free-tier spin-down delays, paired with an always-on static HTML report on GitHub Pages (`docs/index.html`).
+5. **Monotonic session funnel**: Restricted `sql/01_funnel.sql` to sessions with `has_view = 1` (`23,005,603` sessions) and attributed each session to its entry `category_code` and first positive `price` band so stages never increase (`viewed >= carted >= purchased`).
+6. **7-day washout and full-window cohorts**: Excluded users first seen between `2019-10-01` and `2019-10-07` as pre-existing shoppers, and enforced `first_seen_date <= max_date - N` so right-censored cohorts cannot depress `D7`, `D14`, or `D28` return rates.
+7. **Intention-to-Treat (ITT) and tied-quartile handling**: Analyzed `treatment = 1` vs `0` rather than post-assignment `exposure` (`3.60%`) to avoid selection bias. Collapsed mode-tied quartiles on 7 zero-inflated Criteo features into `25` non-overlapping cuts and applied Benjamini-Hochberg FDR correction (`alpha = 0.05`).

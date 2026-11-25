@@ -1,0 +1,27 @@
+# Virtual environment & caches
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+
+# Raw & interim data (never committed)
+data/raw/
+data/interim/
+*.zip
+*.tar.gz
+*.csv.gz
+
+# Secrets & private notes
+.env
+.env.*
+kaggle.json
+access_token
+private/
+
+# OS & editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

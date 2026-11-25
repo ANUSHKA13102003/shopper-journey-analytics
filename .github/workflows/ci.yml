@@ -21,4 +21,4 @@ jobs:
       - name: Lint with ruff
         run: ruff check src/ tests/ app/ run_all.py
       - name: Run pytest on unit tests and real sample fixture
-        run: pytest -v
+        run: python -m pytest -v

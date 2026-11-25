@@ -1,0 +1,18 @@
+{
+  "total_rows": 109950743,
+  "min_event_time": "2019-10-01 00:00:00",
+  "max_event_time": "2019-11-30 23:59:59",
+  "distinct_users": 5316649,
+  "distinct_sessions": 23016650,
+  "null_category_code": 35413780,
+  "null_brand": 15331243,
+  "null_user_session": 12,
+  "null_user_id": 0,
+  "price_le_zero": 256761,
+  "duplicate_rows": 130750,
+  "event_type_counts": {
+    "view": 104335509,
+    "cart": 3955446,
+    "purchase": 1659788
+  }
+}

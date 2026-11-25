@@ -1,0 +1,14 @@
+duckdb==2.0.1
+kaggle==2.2.5
+numpy==2.5.5
+pandas==3.1.1
+plotly==7.1.0
+pyarrow==26.0.1
+pytest==9.2.0
+requests==2.34.2
+ruff==0.17.6
+scikit-uplift==0.5.1
+scipy==1.18.1
+six==1.17.0
+statsmodels==0.15.0
+streamlit==1.67.0

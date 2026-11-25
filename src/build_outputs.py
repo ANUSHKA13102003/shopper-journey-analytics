@@ -141,52 +141,66 @@ def build_static_html_report(
 
     fig_funnel = go.Figure(
         go.Funnel(
-            y=["Viewed", "Carted", "Purchased"],
+            y=["Viewed Product", "Added to Cart", "Completed Purchase"],
             x=[
                 part_a["sessions_viewed"],
                 part_a["sessions_carted"],
                 part_a["sessions_purchased"],
             ],
             textinfo="value+percent initial+percent previous",
+            marker={"color": ["#1F6FEB", "#0D5C53", "#D96B18"]},
         )
     )
     fig_funnel.update_layout(
-        title=f"Biggest drop-off is view to cart ({part_a['biggest_drop_pct'] * 100:.2f}% lost)",
-        height=360,
+        title=(
+            f"Biggest leak is product view to add-to-cart: "
+            f"{part_a['biggest_drop_pct'] * 100:.2f}% of sessions never add an item"
+        ),
+        margin={"l": 20, "r": 20, "t": 48, "b": 20},
+        height=350,
     )
 
+    d1_pct = float(curve_df.iloc[0]["rate"] * 100.0)
+    d28_pct = float(curve_df.iloc[-1]["rate"] * 100.0)
     fig_ret = go.Figure(
         go.Scatter(
             x=curve_df["day_n"],
             y=curve_df["rate"] * 100.0,
             mode="lines+markers",
+            line={"color": "#0D5C53", "width": 2.5},
+            marker={"size": 6},
         )
     )
     fig_ret.update_layout(
-        title=(
-            f"Exact-day retention drops from {curve_df.iloc[0]['rate'] * 100:.2f}% on D1 "
-            f"to {curve_df.iloc[-1]['rate'] * 100:.2f}% on D28"
-        ),
-        xaxis_title="Days Since First Seen",
-        yaxis_title="Active Return Rate (%)",
-        height=360,
+        title=f"Exact-day return drops from {d1_pct:.2f}% on Day 1 to {d28_pct:.2f}% on Day 28",
+        xaxis_title="Days Since First Visit",
+        yaxis_title="Exact-Day Return Rate (%)",
+        margin={"l": 20, "r": 20, "t": 48, "b": 20},
+        height=350,
     )
 
     top_seg = seg_df.sort_values("abs_lift_per_1000", ascending=False).head(8).iloc[::-1]
+    top_seg_lift = float(top_seg.iloc[-1]["abs_lift_per_1000"])
+    conv = part_b["conversion"]
     fig_seg = go.Figure(
         go.Bar(
             x=top_seg["abs_lift_per_1000"],
-            y=top_seg["feature"] + ": " + top_seg["bin_label"],
+            y=top_seg["feature"].str.upper() + " " + top_seg["bin_label"],
             orientation="h",
+            marker={"color": "#D96B18"},
         )
     )
     fig_seg.update_layout(
-        title="Top Criteo Uplift segments by incremental conversions per 1,000 treated users",
-        xaxis_title="Lift per 1,000 Treated Users",
-        height=380,
+        title=(
+            f"Top quartile segments generate +{top_seg_lift:.2f} conversions per 1,000 "
+            f"({top_seg_lift / conv['abs_lift_per_1000']:.1f}x population average)"
+        ),
+        xaxis_title="Incremental Conversions per 1,000 Treated Users",
+        yaxis_title="Feature Quartile",
+        margin={"l": 20, "r": 20, "t": 48, "b": 20},
+        height=370,
     )
 
-    conv = part_b["conversion"]
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -194,90 +208,59 @@ def build_static_html_report(
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Shopper Journey Analytics - Static Report</title>
   <style>
-    body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 980px; margin: 0 auto; padding: 24px; color: #1f2328; line-height: 1.55; }}
-    h1, h2 {{ border-bottom: 1px solid #d0d7de; padding-bottom: 6px; }}
-    .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 16px 0; }}
+    body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 1020px; margin: 0 auto; padding: 24px 18px 48px; color: #1f2328; line-height: 1.55; }}
+    h1 {{ margin-bottom: 6px; }}
+    h2 {{ border-bottom: 1px solid #d0d7de; padding-bottom: 6px; margin-top: 32px; }}
+    .nav {{ display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 20px; }}
+    .btn {{ display: inline-block; padding: 7px 14px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 600; border: 1px solid #0D5C53; color: #0D5C53; }}
+    .btn.primary {{ background: #0D5C53; color: #ffffff; }}
+    .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 18px 0; }}
     .card {{ background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 8px; padding: 12px 14px; }}
-    .label {{ font-size: 12px; color: #57606a; text-transform: uppercase; }}
-    .val {{ font-size: 22px; font-weight: 600; margin-top: 4px; }}
+    .label {{ font-size: 12px; color: #57606a; text-transform: uppercase; letter-spacing: 0.02em; }}
+    .val {{ font-size: 22px; font-weight: 600; margin-top: 4px; color: #0D5C53; }}
+    .takeaway {{ font-size: 14px; background: #f6f8fa; border-left: 3px solid #0D5C53; padding: 8px 12px; margin: 6px 0 18px; border-radius: 0 6px 6px 0; }}
+    .decision {{ background: #eef7f5; border: 1px solid #0D5C53; border-left: 6px solid #0D5C53; border-radius: 8px; padding: 16px 20px; margin-top: 24px; }}
+    .decision h3 {{ margin-top: 0; color: #0D5C53; }}
   </style>
 </head>
 <body>
   <h1>Shopper Journey Analytics</h1>
-  <p>Static report generated from aggregated outputs (<code>outputs/</code>). Funnel drop-off, D7/D14/D28 retention, and A/B uplift decision on real shopper data.</p>
+  <p>Where online shoppers drop off, whether new visitors return, and when paid ad targeting pays back — generated directly from aggregated DuckDB &amp; SciPy outputs (<code>outputs/</code>).</p>
+  <div class="nav">
+    <a class="btn primary" href="https://shopper-journey-analytics.onrender.com">Open Interactive Streamlit App</a>
+    <a class="btn" href="https://github.com/ANUSHKA13102003/shopper-journey-analytics">View GitHub Repository &amp; SQL</a>
+  </div>
+
   <div class="grid">
-    <div class="card"><div class="label">Sessions Viewed</div><div class="val">{part_a['sessions_viewed']:,}</div></div>
+    <div class="card"><div class="label">Viewed Sessions</div><div class="val">{part_a['sessions_viewed']:,}</div></div>
     <div class="card"><div class="label">View-to-Purchase</div><div class="val">{part_a['view_to_purchase_rate'] * 100:.2f}%</div></div>
     <div class="card"><div class="label">Cart Abandonment</div><div class="val">{part_a['cart_abandonment_rate'] * 100:.2f}%</div></div>
-    <div class="card"><div class="label">D28 Return (Window)</div><div class="val">{part_a['d28_return_rate'] * 100:.2f}%</div></div>
-    <div class="card"><div class="label">28d Repeat Purchase</div><div class="val">{part_a['repeat_purchase_28d_rate'] * 100:.2f}%</div></div>
-    <div class="card"><div class="label">Ad Conv Lift / 1k</div><div class="val">+{conv['abs_lift_per_1000']:.3f}</div></div>
+    <div class="card"><div class="label">28-Day Return Rate</div><div class="val">{part_a['d28_return_rate'] * 100:.2f}%</div></div>
+    <div class="card"><div class="label">28-Day Repeat Buyers</div><div class="val">{part_a['repeat_purchase_28d_rate'] * 100:.2f}%</div></div>
+    <div class="card"><div class="label">Ad Lift / 1,000 Users</div><div class="val">+{conv['abs_lift_per_1000']:.2f}</div></div>
   </div>
-  <h2>1. Session Funnel (REES46)</h2>
+
+  <h2>1. Session Funnel Drop-Off (REES46, 109.95M Events)</h2>
   {pio.to_html(fig_funnel, full_html=False, include_plotlyjs="cdn")}
-  <h2>2. Retention Curve (REES46)</h2>
+  <div class="takeaway"><strong>What this means:</strong> {part_a['biggest_drop_pct'] * 100:.2f}% of browsing sessions leave before adding an item to cart ({part_a['view_to_cart_rate'] * 100:.2f}% view-to-cart), and {part_a['cart_abandonment_rate'] * 100:.2f}% of carts abandon before payment. Median time from first view to purchase is {part_a['median_minutes_to_purchase']:.2f} minutes.</div>
+
+  <h2>2. New-Shopper Cohort Retention (REES46, 4.36M Eligible Users)</h2>
   {pio.to_html(fig_ret, full_html=False, include_plotlyjs=False)}
-  <h2>3. Ad Uplift Experiment (Criteo v2.1)</h2>
-  <p>Across {part_b['total_rows']:,} users (85.00% treatment, 15.00% control, max |SMD| = {part_b['max_abs_smd']:.4f}), treatment increases conversion by +{conv['abs_lift_per_1000']:.3f} per 1,000 users (+{conv['rel_lift'] * 100:.2f}% relative, p = {conv['p_value']:.2e}).</p>
+  <div class="takeaway"><strong>What this means:</strong> Excluding the first 7 days as existing traffic, cumulative return reaches {part_a['d7_return_rate'] * 100:.2f}% within 7 days, {part_a['d14_return_rate'] * 100:.2f}% within 14 days, and {part_a['d28_return_rate'] * 100:.2f}% within 28 days, while {part_a['repeat_purchase_28d_rate'] * 100:.2f}% of first-time buyers repeat within 28 days.</div>
+
+  <h2>3. Randomized Ad Uplift Experiment (Criteo v2.1, 13.98M Users)</h2>
   {pio.to_html(fig_seg, full_html=False, include_plotlyjs=False)}
+  <div class="takeaway"><strong>What this means:</strong> Across an 85/15 split (max |SMD| = {part_b['max_abs_smd']:.4f}), treatment lifts overall conversion by +{conv['abs_lift_per_1000']:.2f} per 1,000 users (+{conv['rel_lift'] * 100:.1f}% relative, p = {conv['p_value']:.2e}), but top-quartile segments (F10 &gt; 5.3 / F4 &gt; 10.28) generate +{top_seg_lift:.2f} per 1,000 ({top_seg_lift / conv['abs_lift_per_1000']:.1f}x average).</div>
+
+  <div class="decision">
+    <h3>Decision: Target High-Uplift Segments First — Do Not Scale Blanket Ad Spend</h3>
+    <p>At an assumed conversion value of 1,000, blanket ad targeting breaks even only below {conv['abs_lift'] * 1000:.2f} per treated user, whereas the F10/F4 top quartile breaks even up to {top_seg_lift:.2f} per user. Fix product-page add-to-cart friction ({part_a['biggest_drop_pct'] * 100:.2f}% drop-off) and checkout abandonment ({part_a['cart_abandonment_rate'] * 100:.2f}%) first, then fund targeted ad segments where expected lift clears ad cost.</p>
+  </div>
 </body>
 </html>
 """
     html_path.parent.mkdir(parents=True, exist_ok=True)
     html_path.write_text(html, encoding="utf-8")
-
-    # Export clean static PNGs for README and docs/img/
-    import matplotlib.pyplot as plt
-
-    img_dir = html_path.parent / "img"
-    img_dir.mkdir(parents=True, exist_ok=True)
-
-    fig, ax = plt.subplots(figsize=(8, 4.0), dpi=150)
-    stages = ["Viewed", "Carted", "Purchased"]
-    vals = [
-        part_a["sessions_viewed"] / 1e6,
-        part_a["sessions_carted"] / 1e6,
-        part_a["sessions_purchased"] / 1e6,
-    ]
-    ax.barh(stages[::-1], vals[::-1], color=["#2da44e", "#0969da", "#1f6feb"])
-    ax.set_xlabel("Sessions (Millions)")
-    ax.set_title(f"Biggest drop-off is view to cart ({part_a['biggest_drop_pct'] * 100:.2f}% lost)")
-    for i, v in enumerate(vals[::-1]):
-        ax.text(v + 0.3, i, f"{v:.2f}M", va="center")
-    ax.set_xlim(0, max(vals) * 1.18)
-    fig.tight_layout()
-    fig.savefig(img_dir / "funnel.png")
-    plt.close(fig)
-
-    fig, ax = plt.subplots(figsize=(8, 4.0), dpi=150)
-    ax.plot(curve_df["day_n"], curve_df["rate"] * 100.0, marker="o", markersize=4, color="#1f6feb")
-    ax.set_xlabel("Days Since First Seen")
-    ax.set_ylabel("Active Return Rate (%)")
-    ax.set_title(
-        f"Exact-day retention: {curve_df.iloc[0]['rate'] * 100:.2f}% on D1 "
-        f"to {curve_df.iloc[-1]['rate'] * 100:.2f}% on D28"
-    )
-    ax.grid(alpha=0.25)
-    fig.tight_layout()
-    fig.savefig(img_dir / "retention.png")
-    plt.close(fig)
-
-    fig, ax = plt.subplots(figsize=(8, 4.3), dpi=150)
-    top_seg_asc = top_seg.copy()
-    ax.barh(
-        top_seg_asc["feature"] + ": " + top_seg_asc["bin_label"],
-        top_seg_asc["abs_lift_per_1000"],
-        color="#1f6feb",
-    )
-    ax.set_xlabel("Incremental Conversions per 1,000 Treated Users")
-    ax.set_title(
-        f"Top segments lift +{top_seg_asc.iloc[-1]['abs_lift_per_1000']:.2f}/1k "
-        f"vs +{conv['abs_lift_per_1000']:.2f}/1k overall"
-    )
-    fig.tight_layout()
-    fig.savefig(img_dir / "experiment.png")
-    plt.close(fig)
-
     return html_path
 
 

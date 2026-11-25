@@ -5,7 +5,7 @@
   "control_share": 0.1499998712408774,
   "exposure_rate_treat": 0.036036727482199896,
   "exposure_rate_ctrl": 0.0,
-  "max_abs_smd": 0.04883634020258823,
+  "max_abs_smd": 0.048836340202659444,
   "conversion": {
     "n_treat": 11882655,
     "n_ctrl": 2096937,
